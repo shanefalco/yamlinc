@@ -99,7 +99,7 @@ module.exports = {
      * @param file
      * @returns {*}
      */
-    resolve: function(file)
+    resolve: function(file, filesToWatch)
     {
         var yamlinc = this;
         var base = dirname(file);
@@ -109,7 +109,7 @@ module.exports = {
             });
         var data = yamljs.safeLoad(code);
 
-        this.recursiveResolve(data, base);
+        this.recursiveResolve(data, base, filesToWatch);
 
         return data;
     },
@@ -120,25 +120,51 @@ module.exports = {
      * @param array  $yaml       reference of an array
      * @param string $includeTag tag to include file
      */
-    recursiveResolve: function(data, base) {
+    recursiveResolve: function(data, base, filesToWatch) {
         if (typeof data !== 'object') {
             return;
         }
 
-        var includes = {};
-        for (var key in data) {
-            if (this.isKeyMatchIncludeTag(key)) {
-                if (typeof data[key] === "string" && data[key]) {
-                    includes = this.recursiveInclude(base + '/' + data[key], includes);
-                } else if (typeof data[key] === "object") {
-                    for (var index in data[key]) {
-                        includes = this.recursiveInclude(base + '/' + data[key][index], includes);
+        var includes;
+        if (Array.isArray(data)) {
+            includes = [];
+            var wipeData = false;
+            for (var key in data) {
+                if (typeof data[key] === "object" && data[key]) {
+                    var obj = data[key];
+                    var file = obj["$include"];
+                    if (file) {
+                        var fullPathFile = base + '/' + file;
+                        filesToWatch.push(fullPathFile); 
+                        includes = this.recursiveInclude(fullPathFile, includes);
+                        wipeData = true;
                     }
                 }
-                delete data[key];
-                continue;
             }
-            this.recursiveResolve(data[key], base);
+            if (wipeData) {
+                data.length = 0;
+            }
+        }
+        else {
+            includes = {};
+            for (var key in data) {
+                if (this.isKeyMatchIncludeTag(key)) {
+                    if (typeof data[key] === "string" && data[key]) {
+                        var fullPathFile = base + '/' + data[key];
+                        filesToWatch.push(fullPathFile); 
+                        includes = this.recursiveInclude(fullPathFile, includes, filesToWatch);
+                    } else if (typeof data[key] === "object") {
+                        for (var index in data[key]) {
+                            var fullPathFile = base + '/' + data[key][index];
+                            filesToWatch.push(fullPathFile); 
+                            includes = this.recursiveInclude(fullPathFile, includes, filesToWatch);
+                        }
+                    }
+                    delete data[key];
+                    continue;
+                }
+                this.recursiveResolve(data[key], base, filesToWatch);
+            }
         }
 
         if (includes && Object.keys(includes).length) {
@@ -174,12 +200,12 @@ module.exports = {
 
         var input = helpers.getInputFiles(args);
 
-        var watcher = chokidar.watch('./**/*.yml', {
+        var filesToWatch = this.compile(input.file, input.fileInc);
+
+        var watcher = chokidar.watch(filesToWatch, {
             persistent: true,
             usePolling: true
         });
-
-        this.compile(input.file, input.fileInc);
 
         var cmd = args.shift();
 
@@ -260,9 +286,11 @@ module.exports = {
             return helpers.error('File error', "file '" + file + "' not found.");
         }
 
+        var filesToWatch = [file];
+
         // Compile and prepare disclaimer
         helpers.info("Analize", file);
-        var data = this.resolve(file);
+        var data = this.resolve(file, filesToWatch);
         var disclaimer = [
             "## --------------------",
             "## DON'T EDIT THIS FILE",
@@ -275,6 +303,8 @@ module.exports = {
         helpers.info("Compile", fileInc);
         var code = data ? yamljs.safeDump(data) : 'empty: true';
         fs.writeFileSync(fileInc, disclaimer.join(EOL) + EOL + EOL + code);
+
+        return filesToWatch;
     },
 
     /**
