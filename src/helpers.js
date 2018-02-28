@@ -8,6 +8,7 @@ var fs = require("fs"),
     col = require("colors"),
     spawn = require("child_process").spawn,
     basename = require("path").basename;
+    extname = require("path").extname;
 
 module.exports = {
 
@@ -84,7 +85,7 @@ module.exports = {
             if (!args.hasOwnProperty(i)) {
                 continue;
             }
-            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$/)) {
+            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$|\.yml$/)) {
                 file = args[i];
                 args.splice(i, 1);
                 break;
@@ -98,7 +99,7 @@ module.exports = {
         var fileInc = null;
         for (var i in args) {
             if (!args.hasOwnProperty(i)) { continue; }
-            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$/)) {
+            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$|\.yml$/)) {
                 file = args[i];
                 fileInc = this.getFileInc(file);
                 args[i] = fileInc;
@@ -116,6 +117,6 @@ module.exports = {
      */
     getFileInc: function (file) {
         //return join(process.cwd(), basename(file).replace(/\.yml$/, '.inc.yml'));
-        return basename(file).replace(/\.yaml$/, '.inc.yaml');
+        return basename(file).replace(/\.yaml$|\.yml$/, '.inc' + extname(file));
     },
 };

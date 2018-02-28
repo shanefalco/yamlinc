@@ -236,7 +236,7 @@ module.exports = {
         var fileInc = null;
         for (var i in args) {
             if (!args.hasOwnProperty(i)) { continue; }
-            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$/)) {
+            if (args[i].charAt(0) != "-" && args[i].match(/\.yaml$|\.yml$/)) {
                 file = args[i];
                 fileInc = this.getFileInc(file);
                 args[i] = fileInc;
@@ -270,7 +270,7 @@ module.exports = {
      *
      */
     handleFileChange: function (change, input, cmd, args) {
-        if (!this.watcherEnabled || change.match(/\.inc\.yaml$/)) { return; }
+        if (!this.watcherEnabled || change.match(/\.inc\.yaml$|\.inc\.yml$/)) { return; }
         helpers.info('Changed', change);
         this.compile(input.file, input.fileInc);
         if (!this.spawnRunning) {
